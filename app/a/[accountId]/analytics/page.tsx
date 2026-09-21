@@ -77,6 +77,20 @@ export default async function AmAnalyticsPage({ params }: { params: Promise<{ ac
     avgDays: v.closed > 0 ? Math.round(v.days / v.closed) : 0
   }));
 
+  // ── Category Pending / Bottleneck Breakdown ─────────────────────────────
+  const pendingCatMap: Record<string, { pending: number; inProgress: number; inQc: number; totalOpen: number }> = {};
+  allTasks.filter(t => t.status !== 'closed').forEach(t => {
+    const cat = t.category || 'SEO';
+    pendingCatMap[cat] = pendingCatMap[cat] || { pending: 0, inProgress: 0, inQc: 0, totalOpen: 0 };
+    if (t.status === 'pending') pendingCatMap[cat].pending++;
+    else if (t.status === 'in_progress') pendingCatMap[cat].inProgress++;
+    else if (t.status === 'qc') pendingCatMap[cat].inQc++;
+    pendingCatMap[cat].totalOpen++;
+  });
+  const categoryPending = Object.entries(pendingCatMap)
+    .map(([category, v]) => ({ category, ...v }))
+    .sort((a, b) => b.totalOpen - a.totalOpen);
+
   // ── Communication frequency (last 30 days) ──────────────────────────────
   const last30 = new Date(Date.now() - 30 * 86400000);
   const commMap: Record<string, number> = {};
@@ -143,6 +157,7 @@ export default async function AmAnalyticsPage({ params }: { params: Promise<{ ac
             taskTrend={taskTrend}
             statusDist={statusDist}
             categoryPerf={categoryPerf}
+            categoryPending={categoryPending}
             commFreq={commFreq.length > 0 ? commFreq : [{ date: 'No data', count: 0 }]}
             projectHealth={projectHealth}
             amName={amName}
