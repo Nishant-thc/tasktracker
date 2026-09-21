@@ -8,7 +8,7 @@ import NewProjectModal from './NewProjectModal';
 
 export default async function AgencyPortfolioPage({ params }: { params: Promise<{ accountId: string }> }) {
   const resolvedParams = await params;
-  const account = await prisma.account.findUnique({
+  let account = await prisma.account.findUnique({
     where: { id: resolvedParams.accountId },
     include: {
       projects: {
@@ -18,6 +18,18 @@ export default async function AgencyPortfolioPage({ params }: { params: Promise<
       },
     },
   });
+
+  if (!account) {
+    account = await prisma.account.findFirst({
+      include: {
+        projects: {
+          include: {
+            dependencies: true,
+          },
+        },
+      },
+    });
+  }
 
   if (!account) notFound();
 
