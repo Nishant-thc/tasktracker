@@ -149,7 +149,7 @@ export default function TimelineView({ tasks }: { tasks: Task[] }) {
         style={{
           display: 'flex',
           alignItems: 'center',
-          justify: 'space-between',
+          justifyContent: 'space-between',
           height: `${rh}px`,
           padding: '0 12px',
           borderBottom: '1px solid var(--line2)',
