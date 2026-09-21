@@ -1,6 +1,12 @@
 import { PrismaClient } from '@prisma/client'
+import * as crypto from 'crypto'
 
 const prisma = new PrismaClient()
+
+function hashPassword(password: string): string {
+  const secret = process.env.SESSION_SECRET || 'fallback-dev-secret'
+  return crypto.createHmac('sha256', secret).update(password).digest('hex')
+}
 
 async function main() {
   console.log('Clearing existing database tables...')
@@ -31,6 +37,7 @@ async function main() {
     data: {
       email: 'admin@opositive.agency',
       name: 'Agency Admin',
+      passwordHash: hashPassword('Admin@1234'),
     },
   })
 
@@ -38,6 +45,7 @@ async function main() {
     data: {
       email: 'alice@opositive.agency',
       name: 'Alice Johnson (AM)',
+      passwordHash: hashPassword('Alice@1234'),
     },
   })
 
@@ -45,6 +53,7 @@ async function main() {
     data: {
       email: 'bob@opositive.agency',
       name: 'Bob Smith (AM)',
+      passwordHash: hashPassword('Bob@1234'),
     },
   })
 
