@@ -18,34 +18,39 @@ function verifyPassword(password: string, hash: string): boolean {
 }
 
 export async function login(email: string, password: string) {
-  const user = await prisma.user.findUnique({ where: { email } });
-  if (!user || !user.passwordHash) {
-    return { error: 'Invalid email or password.' };
+  try {
+    const user = await prisma.user.findUnique({ where: { email } });
+    if (!user || !user.passwordHash) {
+      return { error: 'Invalid email or password.' };
+    }
+
+    const valid = verifyPassword(password, user.passwordHash);
+    if (!valid) {
+      return { error: 'Invalid email or password.' };
+    }
+
+    const membership = await prisma.membership.findFirst({
+      where: { userId: user.id, status: 'active' },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    if (!membership) {
+      return { error: 'No active account found for this user.' };
+    }
+
+    await setSession({
+      id: user.id,
+      email: user.email,
+      name: user.name,
+      role: membership.role,
+      accountId: membership.accountId,
+    });
+
+    return { success: true, accountId: membership.accountId };
+  } catch (err: any) {
+    console.error('Login action error:', err);
+    return { error: err?.message || 'Authentication error. Please try again.' };
   }
-
-  const valid = verifyPassword(password, user.passwordHash);
-  if (!valid) {
-    return { error: 'Invalid email or password.' };
-  }
-
-  const membership = await prisma.membership.findFirst({
-    where: { userId: user.id, status: 'active' },
-    orderBy: { createdAt: 'desc' },
-  });
-
-  if (!membership) {
-    return { error: 'No active account found for this user.' };
-  }
-
-  await setSession({
-    id: user.id,
-    email: user.email,
-    name: user.name,
-    role: membership.role,
-    accountId: membership.accountId,
-  });
-
-  return { success: true, accountId: membership.accountId };
 }
 
 export async function logout() {
