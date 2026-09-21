@@ -1,0 +1,139 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Account {
+  id                   String       @id @default(uuid())
+  accountNumber        Int          @unique
+  name                 String
+  agencyName           String?
+  agencyLogoUrl        String?
+  timezone             String       @default("UTC")
+  currency             String       @default("USD")
+  communicationConfig  String?      // JSON: { whatsapp: bool, slack: bool, email: bool }
+  createdAt            DateTime     @default(now())
+  updatedAt            DateTime     @updatedAt
+  memberships          Membership[]
+  projects             Project[]
+  messageLogs          MessageLog[]
+  inviteTokens         InviteToken[]
+}
+
+model User {
+  id              String          @id @default(uuid())
+  email           String          @unique
+  name            String?
+  passwordHash    String?
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+  memberships     Membership[]
+  clientContacts  ClientContact[]
+  managedProjects Project[]       @relation("ProjectAM")
+}
+
+model Membership {
+  id        String   @id @default(uuid())
+  accountId String
+  userId    String
+  role      String   // owner, admin, am, member
+  status    String   @default("active")
+  account   Account  @relation(fields: [accountId], references: [id])
+  user      User     @relation(fields: [userId], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@unique([accountId, userId])
+}
+
+model Project {
+  id                 String          @id @default(uuid())
+  accountId          String
+  projectNumber      Int             @unique
+  clientName         String
+  name               String
+  type               String
+  category           String?         // SEO, PPC, Content, CRO, Social, Email, Tech, Other
+  status             String          @default("active") // active, paused, completed, archived
+  projectToken       String          @unique @default(uuid())
+  account            Account         @relation(fields: [accountId], references: [id])
+  accountManagerId   String?
+  accountManager     User?           @relation("ProjectAM", fields: [accountManagerId], references: [id])
+  dependencies       Dependency[]
+  clientContacts     ClientContact[]
+  messageLogs        MessageLog[]
+  integrationsConfig String?
+  primaryColor       String?
+  clientLogoUrl      String?
+  customMetrics      String?
+  googleRefreshToken String?  // stored after Google OAuth consent
+  createdAt          DateTime        @default(now())
+  updatedAt          DateTime        @updatedAt
+}
+
+model ClientContact {
+  id          String   @id @default(uuid())
+  projectId   String
+  userId      String?
+  name        String
+  email       String
+  role        String   // contributor, viewer
+  project     Project  @relation(fields: [projectId], references: [id])
+  user        User?    @relation(fields: [userId], references: [id])
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Dependency {
+  id                 String    @id @default(uuid())
+  projectId          String
+  title              String
+  description        String?
+  impactIfDelayed    String?
+  priority           String    // high, medium, low
+  impactScore        Int       @default(3)
+  estimatedUpliftPct Float     @default(0.0)
+  status             String    @default("pending")
+  links              String?   // JSON string
+  dueDate            DateTime?
+  startedAt          DateTime?
+  qcAt               DateTime?
+  closedAt           DateTime?
+  category           String?
+  reworkCount        Int       @default(0)
+  sentBackNote       String?
+  project            Project   @relation(fields: [projectId], references: [id])
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+}
+
+model MessageLog {
+  id         String   @id @default(uuid())
+  projectId  String
+  accountId  String
+  channel    String   // email | slack | whatsapp | in_app | system
+  direction  String   // outbound | inbound | system
+  fromName   String
+  toName     String
+  subject    String?
+  body       String
+  sentAt     DateTime @default(now())
+  readAt     DateTime?
+  project    Project  @relation(fields: [projectId], references: [id])
+  account    Account  @relation(fields: [accountId], references: [id])
+}
+
+model InviteToken {
+  id        String    @id @default(uuid())
+  accountId String
+  email     String
+  role      String    // am | admin
+  token     String    @unique @default(uuid())
+  usedAt    DateTime?
+  expiresAt DateTime
+  createdAt DateTime  @default(now())
+  account   Account   @relation(fields: [accountId], references: [id])
+}
