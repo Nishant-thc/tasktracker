@@ -53,24 +53,21 @@ export default function TimelineView({ tasks }: { tasks: Task[] }) {
   const span = Math.max(now - t0, 7 * DAY);
   const spanDays = Math.ceil(span / DAY);
 
-  // Responsive fixed-pixel layout calculations
-  const x0 = 340; // Generous room for titles & age badges
-  const timelineWidth = Math.max(700, Math.min(1300, spanDays * 7));
-  const W = x0 + timelineWidth + 40;
-  const x1 = W - 30;
-  const rh = 36; // Height per task row
-  const top = 36; // Header axis offset
+  // Split-layout metrics
+  const rh = 36; // Row height in pixels (1:1 lock between left sidebar & right SVG)
+  const top = 36; // Header height
+  const timelineWidth = Math.max(800, Math.min(1400, spanDays * 8.5));
+  const x1 = timelineWidth - 20;
 
   const act = tasks.filter(t => t.status !== 'closed').sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
   const done = tasks.filter(t => t.status === 'closed').sort((a, b) => (new Date(b.closedAt || 0).getTime()) - (new Date(a.closedAt || 0).getTime()));
 
   const totalRows = act.length + (done.length ? (showClosed ? done.length + 1 : 1) : 0);
-  const H = top + totalRows * rh + 20;
+  const H = top + totalRows * rh + 10;
 
-  const X = (t: number) => x0 + ((t - t0) / span) * (x1 - x0);
+  const X = (t: number) => 20 + ((t - t0) / span) * (x1 - 20);
 
-  const renderRow = (t: Task, y: number, opacity: number = 1) => {
-    const pr = P[t.priority] || P.medium;
+  const renderSvgRow = (t: Task, y: number, opacity: number = 1) => {
     const cy = y + rh / 2;
     const cTime = new Date(t.createdAt).getTime();
     const sTime = t.startedAt ? new Date(t.startedAt).getTime() : null;
@@ -78,67 +75,49 @@ export default function TimelineView({ tasks }: { tasks: Task[] }) {
     const closedTime = t.closedAt ? new Date(t.closedAt).getTime() : null;
     const end = closedTime || now;
 
-    const d = closedTime ? days(cTime, end) : days(cTime, now);
-    const ageColor = closedTime ? 'var(--faint)' : d >= 14 ? 'var(--hi)' : d >= 7 ? 'var(--md)' : 'var(--faint)';
-
     return (
-      <a key={t.id} href={`#task-${t.id}`} style={{ opacity, cursor: 'pointer', textDecoration: 'none' }}>
-        <g>
-          <title>{`${t.title}, raised ${fmt(cTime)}, ${ST[t.status]?.label.toLowerCase()}`}</title>
-          
-          {/* Priority Dot */}
-          <circle cx="10" cy={cy} r="4" style={{ fill: `var(${pr.c})` }} />
+      <g key={t.id} style={{ opacity }}>
+        <title>{`${t.title}, raised ${fmt(cTime)}, ${ST[t.status]?.label.toLowerCase()}`}</title>
+        
+        {/* Pending segment (Not started) */}
+        <line
+          x1={X(cTime)}
+          x2={X(sTime || end)}
+          y1={cy}
+          y2={cy}
+          style={{ stroke: 'var(--s-pend)', strokeWidth: 8, strokeLinecap: 'round' }}
+        />
 
-          {/* Task Title */}
-          <text className="rowlbl" x="24" y={cy + 4} style={{ fill: 'var(--ink)', fontSize: '13px', fontWeight: 500 }}>
-            {t.title.length > 42 ? t.title.slice(0, 41) + '…' : t.title}
-          </text>
-
-          {/* Age in days */}
-          <text className="agetx" x={x0 - 16} y={cy + 4} textAnchor="end" style={{ fill: ageColor, fontSize: '12px', fontWeight: 600 }}>
-            {d}d
-          </text>
-
-          {/* Pending segment (Not started) */}
+        {/* In Progress segment */}
+        {sTime && (
           <line
-            x1={X(cTime)}
-            x2={X(sTime || end)}
+            x1={X(sTime)}
+            x2={X(qTime || end)}
             y1={cy}
             y2={cy}
-            style={{ stroke: 'var(--s-pend)', strokeWidth: 8, strokeLinecap: 'round' }}
+            style={{ stroke: 'var(--s-prog)', strokeWidth: 8, strokeLinecap: 'round' }}
           />
+        )}
 
-          {/* In Progress segment */}
-          {sTime && (
-            <line
-              x1={X(sTime)}
-              x2={X(qTime || end)}
-              y1={cy}
-              y2={cy}
-              style={{ stroke: 'var(--s-prog)', strokeWidth: 8, strokeLinecap: 'round' }}
-            />
-          )}
-
-          {/* QC segment */}
-          {qTime && (
-            <line
-              x1={X(qTime)}
-              x2={X(end)}
-              y1={cy}
-              y2={cy}
-              style={{ stroke: 'var(--s-qc)', strokeWidth: 8, strokeLinecap: 'round' }}
-            />
-          )}
-
-          {/* Status End Indicator Circle */}
-          <circle
-            cx={X(end)}
-            cy={cy}
-            r="6"
-            style={{ fill: `var(${ST[t.status]?.c || '--s-pend'})`, stroke: 'var(--surface)', strokeWidth: 2 }}
+        {/* QC segment */}
+        {qTime && (
+          <line
+            x1={X(qTime)}
+            x2={X(end)}
+            y1={cy}
+            y2={cy}
+            style={{ stroke: 'var(--s-qc)', strokeWidth: 8, strokeLinecap: 'round' }}
           />
-        </g>
-      </a>
+        )}
+
+        {/* Status End Indicator Circle */}
+        <circle
+          cx={X(end)}
+          cy={cy}
+          r="6"
+          style={{ fill: `var(${ST[t.status]?.c || '--s-pend'})`, stroke: 'var(--surface)', strokeWidth: 2 }}
+        />
+      </g>
     );
   };
 
@@ -148,13 +127,61 @@ export default function TimelineView({ tasks }: { tasks: Task[] }) {
   for (let t = t0; t <= now; t += stepDays * DAY) {
     gridLines.push(
       <g key={t}>
-        <line className="gridl" x1={X(t)} x2={X(t)} y1={top - 8} y2={H - 10} style={{ stroke: 'var(--line)', strokeWidth: 1 }} />
+        <line className="gridl" x1={X(t)} x2={X(t)} y1={top - 8} y2={H - 6} style={{ stroke: 'var(--line)', strokeWidth: 1 }} />
         <text className="axis" x={X(t)} y={top - 14} textAnchor="middle" style={{ fill: 'var(--faint)', fontSize: '11px', fontWeight: 500 }}>
           {fmt(t)}
         </text>
       </g>
     );
   }
+
+  const renderLeftTaskRow = (t: Task, isDone: boolean = false) => {
+    const pr = P[t.priority] || P.medium;
+    const cTime = new Date(t.createdAt).getTime();
+    const end = t.closedAt ? new Date(t.closedAt).getTime() : now;
+    const d = t.closedAt ? days(cTime, end) : days(cTime, now);
+    const ageColor = t.closedAt ? 'var(--faint)' : d >= 14 ? 'var(--hi)' : d >= 7 ? 'var(--md)' : 'var(--faint)';
+
+    return (
+      <a
+        key={t.id}
+        href={`#task-${t.id}`}
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justify: 'space-between',
+          height: `${rh}px`,
+          padding: '0 12px',
+          borderBottom: '1px solid var(--line2)',
+          textDecoration: 'none',
+          color: 'var(--ink)',
+          opacity: isDone ? 0.65 : 1,
+          gap: '8px',
+          transition: 'background 0.15s ease',
+        }}
+        className="gantt-row-hover"
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0, flex: 1 }}>
+          <span style={{ width: 8, height: 8, borderRadius: '50%', background: `var(${pr.c})`, flexShrink: 0 }} />
+          <span
+            style={{
+              fontSize: '13px',
+              fontWeight: 500,
+              whiteSpace: 'nowrap',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+            }}
+            title={t.title}
+          >
+            {t.title}
+          </span>
+        </div>
+        <span style={{ fontSize: '12px', fontWeight: 600, color: ageColor, flexShrink: 0, fontVariantNumeric: 'tabular-nums' }}>
+          {d}d
+        </span>
+      </a>
+    );
+  };
 
   return (
     <div className="panel" style={{ padding: '20px' }}>
@@ -167,32 +194,111 @@ export default function TimelineView({ tasks }: { tasks: Task[] }) {
         </div>
       </div>
 
-      {/* Horizontal Scrollable Container */}
-      <div className="scroll-x" style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch', border: '1px solid var(--line)', borderRadius: '8px', padding: '12px 8px 8px', background: 'var(--surface)' }}>
-        <div style={{ minWidth: `${W}px`, width: `${W}px` }}>
-          <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`} role="img" aria-label="Timeline of each dependency" suppressHydrationWarning style={{ display: 'block' }}>
-            {gridLines}
+      {/* Split Gantt Container */}
+      <div
+        style={{
+          display: 'flex',
+          border: '1px solid var(--line)',
+          borderRadius: '10px',
+          overflow: 'hidden',
+          background: 'var(--surface)',
+        }}
+      >
+        {/* LEFT COLUMN: Pinned Sticky Task Titles */}
+        <div
+          style={{
+            width: '320px',
+            minWidth: '320px',
+            flexShrink: 0,
+            borderRight: '1px solid var(--line)',
+            background: 'var(--surface)',
+            zIndex: 2,
+            display: 'flex',
+            flexDirection: 'column',
+          }}
+        >
+          {/* Header Cell */}
+          <div
+            style={{
+              height: `${top}px`,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              padding: '0 12px',
+              borderBottom: '1px solid var(--line)',
+              background: 'var(--line2)',
+              fontSize: '11px',
+              fontWeight: 600,
+              color: 'var(--faint)',
+              textTransform: 'uppercase',
+              letterSpacing: '0.04em',
+            }}
+          >
+            <span>Task / Dependency ({act.length})</span>
+            <span>Age</span>
+          </div>
 
-            {/* Today's marker line */}
-            <line x1={x1} x2={x1} y1={top - 8} y2={H - 10} style={{ stroke: 'var(--ac)', strokeDasharray: '4 4', strokeWidth: 1.5 }} />
+          {/* Active Task Rows */}
+          {act.map(t => renderLeftTaskRow(t, false))}
 
-            {/* Active Tasks */}
-            {act.map((t, i) => renderRow(t, top + i * rh))}
+          {/* Closed Tasks Toggle & Rows */}
+          {done.length > 0 && (
+            <>
+              <div
+                onClick={() => setShowClosed(!showClosed)}
+                style={{
+                  height: `${rh}px`,
+                  display: 'flex',
+                  alignItems: 'center',
+                  padding: '0 12px',
+                  borderBottom: '1px solid var(--line2)',
+                  cursor: 'pointer',
+                  color: 'var(--ac)',
+                  fontSize: '12px',
+                  fontWeight: 600,
+                  background: 'var(--ac-soft)',
+                }}
+              >
+                {showClosed ? '▼ Hide closed' : '▶ Show closed'} ({done.length} tasks)
+              </div>
+              {showClosed && done.map(t => renderLeftTaskRow(t, true))}
+            </>
+          )}
+        </div>
 
-            {/* Closed Tasks Toggle & Rows */}
-            {done.length > 0 && (
-              <>
-                <line className="gridl" x1="0" x2={W} y1={top + act.length * rh + 14} y2={top + act.length * rh + 14} style={{ stroke: 'var(--line)', strokeDasharray: '2 2' }} />
-                <g onClick={() => setShowClosed(!showClosed)} style={{ cursor: 'pointer' }}>
-                  <rect x="0" y={top + act.length * rh + 18} width="160" height="22" fill="transparent" />
-                  <text className="axis" x="10" y={top + act.length * rh + 32} style={{ fill: 'var(--ac)', fontWeight: 600, fontSize: '12px' }}>
-                    {showClosed ? '▼ Hide closed' : '▶ Show closed'} ({done.length} tasks)
-                  </text>
-                </g>
-                {showClosed && done.map((t, i) => renderRow(t, top + (act.length + 1) * rh + 10 + i * rh, 0.65))}
-              </>
-            )}
-          </svg>
+        {/* RIGHT COLUMN: Scrollable Timeline Grid & Bars */}
+        <div
+          style={{
+            flex: 1,
+            overflowX: 'auto',
+            WebkitOverflowScrolling: 'touch',
+            background: 'var(--surface)',
+          }}
+        >
+          <div style={{ minWidth: `${timelineWidth}px`, width: `${timelineWidth}px` }}>
+            <svg
+              width={timelineWidth}
+              height={H}
+              viewBox={`0 0 ${timelineWidth} ${H}`}
+              role="img"
+              aria-label="Timeline visualization"
+              suppressHydrationWarning
+              style={{ display: 'block' }}
+            >
+              {gridLines}
+
+              {/* Today's marker line */}
+              <line x1={x1} x2={x1} y1={top - 8} y2={H - 6} style={{ stroke: 'var(--ac)', strokeDasharray: '4 4', strokeWidth: 1.5 }} />
+
+              {/* Active Tasks SVG Rows */}
+              {act.map((t, i) => renderSvgRow(t, top + i * rh))}
+
+              {/* Closed Tasks SVG Rows */}
+              {done.length > 0 && showClosed && (
+                done.map((t, i) => renderSvgRow(t, top + (act.length + 1) * rh + i * rh, 0.65))
+              )}
+            </svg>
+          </div>
         </div>
       </div>
 
