@@ -21,13 +21,9 @@ export default async function AmAnalyticsPage({ params }: { params: Promise<{ ac
     where: { id: accountId },
     include: {
       projects: {
-        where: role === 'am' && amId ? { accountManagerId: amId } : {},
         include: { dependencies: true, accountManager: { select: { name: true } } }
       },
       messageLogs: {
-        where: role === 'am' && amId
-          ? { project: { accountManagerId: amId } }
-          : {},
         orderBy: { sentAt: 'asc' }
       }
     }

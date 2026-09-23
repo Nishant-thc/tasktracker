@@ -260,23 +260,32 @@ export async function createProject(data: {
   status?: string;
   accountManagerId?: string | null;
 }) {
+  if (!data.accountId || !data.clientName || !data.name) {
+    throw new Error('Client name and project name are required.');
+  }
+
   const token = crypto.randomUUID();
 
-  // Auto-generate project number
-  const count = await prisma.project.count();
-  
+  // Safely auto-generate next unique project number
+  const maxProject = await prisma.project.findFirst({
+    orderBy: { projectNumber: 'desc' },
+    select: { projectNumber: true },
+  });
+
+  const nextNumber = maxProject ? maxProject.projectNumber + 1 : 1000;
+
   const project = await prisma.project.create({
     data: {
       accountId: data.accountId,
-      clientName: data.clientName,
-      name: data.name,
-      type: data.type,
-      category: data.category || null,
+      clientName: data.clientName.trim(),
+      name: data.name.trim(),
+      type: data.type || 'Retainer',
+      category: data.category || 'SEO',
       status: data.status || 'active',
       accountManagerId: data.accountManagerId || null,
       projectToken: token,
-      projectNumber: count + 1000,
-      integrationsConfig: JSON.stringify({ importantLinks: [] })
+      projectNumber: nextNumber,
+      integrationsConfig: JSON.stringify({ importantLinks: [] }),
     },
   });
 

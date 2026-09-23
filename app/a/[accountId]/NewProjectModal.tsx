@@ -21,6 +21,7 @@ export default function NewProjectModal({
 }) {
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
 
   // Pre-select current user if available or single AM in list
   const defaultAm = (currentUserId && accountManagers.some(a => a.id === currentUserId))
@@ -47,6 +48,7 @@ export default function NewProjectModal({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
+    setError('');
     try {
       const project = await createProject({
         accountId,
@@ -58,10 +60,10 @@ export default function NewProjectModal({
         accountManagerId: form.accountManagerId || currentUserId || null,
       });
       setOpen(false);
-      router.push(`/a/${accountId}/p/${project.id}`);
-    } catch (err) {
-      console.error(err);
-    } finally {
+      window.location.href = `/a/${accountId}/p/${project.id}`;
+    } catch (err: any) {
+      console.error('Project creation failed:', err);
+      setError(err?.message || 'Failed to create project. Please check fields.');
       setLoading(false);
     }
   };
@@ -100,6 +102,11 @@ export default function NewProjectModal({
             </div>
 
             <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              {error && (
+                <div style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: '8px', padding: '10px 14px', color: '#ef4444', fontSize: '13px' }}>
+                  {error}
+                </div>
+              )}
               {field('Client Name', (
                 <input id="np-client" style={inputStyle} required value={form.clientName}
                   onChange={e => setForm(f => ({ ...f, clientName: e.target.value }))}

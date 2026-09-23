@@ -51,9 +51,7 @@ export default async function AgencyPortfolioPage({ params }: { params: Promise<
     amUsers.push({ id: userId, name: session?.name || 'Account Manager' });
   }
 
-  const displayProjects = role === 'am' && userId
-    ? account.projects.filter(p => p.accountManagerId === userId)
-    : account.projects;
+  const displayProjects = account.projects;
 
   let totalProjects = displayProjects.length;
   let totalOpenWithClients = 0;

@@ -15,7 +15,6 @@ export default async function AgencyActivityPage({ params }: { params: Promise<{
     where: { id: resolvedParams.accountId },
     include: {
       projects: {
-        where: role === 'am' && userId ? { accountManagerId: userId } : {},
         include: { dependencies: true },
       },
     },
