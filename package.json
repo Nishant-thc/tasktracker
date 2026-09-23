@@ -10,6 +10,7 @@
     "postinstall": "prisma generate"
   },
   "dependencies": {
+    "@prisma/client": "^5.22.0",
     "@slack/webhook": "^8.0.2",
     "@types/nodemailer": "^8.0.2",
     "bcryptjs": "^3.0.3",
@@ -23,7 +24,6 @@
     "tsx": "^4.23.13"
   },
   "devDependencies": {
-    "@prisma/client": "^5.22.0",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20.19.43",
     "@types/react": "^19",
@@ -33,7 +33,6 @@
     "prisma": "^5.22.0",
     "tailwindcss": "^4",
     "ts-node": "^10.9.2",
-    "tsx": "^4.23.13",
     "typescript": "^5"
   },
   "prisma": {
