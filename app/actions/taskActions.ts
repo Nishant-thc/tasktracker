@@ -260,39 +260,70 @@ export async function createProject(data: {
   status?: string;
   accountManagerId?: string | null;
 }) {
-  if (!data.accountId || !data.clientName || !data.name) {
-    throw new Error('Client name and project name are required.');
+  try {
+    if (!data.clientName || !data.name) {
+      throw new Error('Client name and project name are required.');
+    }
+
+    // Ensure account exists or fallback
+    let targetAccountId = data.accountId;
+    if (targetAccountId) {
+      const acc = await prisma.account.findUnique({ where: { id: targetAccountId } });
+      if (!acc) targetAccountId = '';
+    }
+    if (!targetAccountId) {
+      const firstAcc = await prisma.account.findFirst();
+      if (!firstAcc) throw new Error('No agency account found.');
+      targetAccountId = firstAcc.id;
+    }
+
+    // Validate accountManagerId against User table to prevent Foreign Key errors
+    let validAmId: string | null = null;
+    if (data.accountManagerId) {
+      const amUser = await prisma.user.findUnique({ where: { id: data.accountManagerId } });
+      if (amUser) {
+        validAmId = amUser.id;
+      }
+    }
+
+    const token = crypto.randomUUID();
+
+    // Safely auto-generate next unique project number
+    const maxProject = await prisma.project.findFirst({
+      orderBy: { projectNumber: 'desc' },
+      select: { projectNumber: true },
+    });
+
+    const nextNumber = maxProject ? maxProject.projectNumber + 1 : 1000;
+
+    const project = await prisma.project.create({
+      data: {
+        accountId: targetAccountId,
+        clientName: data.clientName.trim(),
+        name: data.name.trim(),
+        type: data.type || 'Retainer',
+        category: data.category || 'SEO',
+        status: data.status || 'active',
+        accountManagerId: validAmId,
+        projectToken: token,
+        projectNumber: nextNumber,
+        integrationsConfig: JSON.stringify({ importantLinks: [] }),
+      },
+    });
+
+    await writeMessageLog(project.id, targetAccountId, `Project "${data.name}" for ${data.clientName} created.`);
+
+    try {
+      revalidatePath('/', 'layout');
+    } catch (e) {
+      // ignore non-fatal revalidate error
+    }
+
+    return project;
+  } catch (err: any) {
+    console.error('Error inside createProject server action:', err);
+    throw new Error(err?.message || 'Could not create project due to a database error.');
   }
-
-  const token = crypto.randomUUID();
-
-  // Safely auto-generate next unique project number
-  const maxProject = await prisma.project.findFirst({
-    orderBy: { projectNumber: 'desc' },
-    select: { projectNumber: true },
-  });
-
-  const nextNumber = maxProject ? maxProject.projectNumber + 1 : 1000;
-
-  const project = await prisma.project.create({
-    data: {
-      accountId: data.accountId,
-      clientName: data.clientName.trim(),
-      name: data.name.trim(),
-      type: data.type || 'Retainer',
-      category: data.category || 'SEO',
-      status: data.status || 'active',
-      accountManagerId: data.accountManagerId || null,
-      projectToken: token,
-      projectNumber: nextNumber,
-      integrationsConfig: JSON.stringify({ importantLinks: [] }),
-    },
-  });
-
-  await writeMessageLog(project.id, data.accountId, `Project "${data.name}" for ${data.clientName} created.`);
-
-  revalidatePath('/', 'layout');
-  return project;
 }
 
 export async function updateProjectCategory(projectId: string, category: string, status: string) {

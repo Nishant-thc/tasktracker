@@ -17,15 +17,14 @@ function initPrisma(): PrismaClient {
 
     if (foundSource) {
       try {
-        if (!fs.existsSync(tmpDbPath) || fs.statSync(tmpDbPath).size === 0) {
-          fs.copyFileSync(foundSource, tmpDbPath);
-          console.log(`[Prisma] Successfully copied SQLite database from ${foundSource} to ${tmpDbPath}`);
-        }
+        // Always overwrite /tmp/dev.db with the latest database file from build
+        fs.copyFileSync(foundSource, tmpDbPath);
+        try {
+          fs.chmodSync(tmpDbPath, 0o666);
+        } catch (e) {}
       } catch (err) {
         console.error('[Prisma] Error copying SQLite db to /tmp:', err);
       }
-    } else {
-      console.warn('[Prisma] Could not locate dev.db in source paths:', possibleSources);
     }
 
     const targetUrl = fs.existsSync(tmpDbPath)
