@@ -50,7 +50,20 @@ export default function AddDependencyModal({ projectId, onClose, onSubmit }: Add
 
   return (
     <div className="ov open" role="dialog" aria-modal="true">
-      <div className="dlg">
+      <div className="dlg" style={{ position: 'relative' }}>
+        <button
+          type="button"
+          onClick={onClose}
+          aria-label="Close dialog"
+          style={{
+            position: 'absolute', top: '16px', right: '16px',
+            background: 'none', border: 0, fontSize: '18px', fontWeight: 600,
+            color: 'var(--faint)', cursor: 'pointer', padding: '4px 8px', borderRadius: '6px',
+            lineHeight: 1,
+          }}
+        >
+          ✕
+        </button>
         <h2>Add dependency</h2>
         <p className="sub2">Log a new change required from the client.</p>
         

@@ -39,6 +39,13 @@ function fmt(d: Date | number | null) {
 
 export default function TimelineView({ tasks }: { tasks: Task[] }) {
   const [showClosed, setShowClosed] = useState(false);
+  const ganttScrollRef = React.useRef<HTMLDivElement>(null);
+
+  React.useEffect(() => {
+    if (ganttScrollRef.current) {
+      ganttScrollRef.current.scrollLeft = ganttScrollRef.current.scrollWidth;
+    }
+  }, [tasks, showClosed]);
 
   if (!tasks.length) {
     return (
@@ -268,6 +275,7 @@ export default function TimelineView({ tasks }: { tasks: Task[] }) {
 
         {/* RIGHT COLUMN: Scrollable Timeline Grid & Bars */}
         <div
+          ref={ganttScrollRef}
           style={{
             flex: 1,
             overflowX: 'auto',

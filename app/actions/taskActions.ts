@@ -113,6 +113,44 @@ export async function createDependency(data: {
   return dep;
 }
 
+export async function updateDependency(data: {
+  taskId: string;
+  title: string;
+  category?: string | null;
+  priority: string;
+  impactScore: number;
+  estimatedUpliftPct: number;
+  description: string;
+  impactIfDelayed: string;
+  links: string[];
+  dueDate?: string | null;
+}) {
+  const task = await prisma.dependency.findUnique({
+    where: { id: data.taskId },
+    select: { id: true, projectId: true, project: { select: { accountId: true } } }
+  });
+  if (!task) throw new Error('Task not found');
+
+  const updated = await prisma.dependency.update({
+    where: { id: data.taskId },
+    data: {
+      title: data.title,
+      category: data.category || null,
+      priority: data.priority,
+      impactScore: data.impactScore,
+      estimatedUpliftPct: data.estimatedUpliftPct,
+      description: data.description || null,
+      impactIfDelayed: data.impactIfDelayed || null,
+      links: JSON.stringify(data.links),
+      dueDate: data.dueDate ? new Date(data.dueDate) : null,
+    },
+  });
+
+  await writeMessageLog(task.projectId, task.project.accountId, `Task "${data.title}" was updated.`);
+  revalidatePath('/', 'layout');
+  return updated;
+}
+
 export async function createClientContact(data: {
   projectId: string;
   name: string;

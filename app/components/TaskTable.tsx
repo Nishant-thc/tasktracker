@@ -1,6 +1,8 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import EditDependencyModal from './EditDependencyModal';
+import { updateDependency } from '@/app/actions/taskActions';
 
 export type Task = {
   id: string;
@@ -70,6 +72,9 @@ export default function TaskTable({ tasks, role, clientName, agencyName, onActio
   // Note modal state
   const [sendBackId, setSendBackId] = useState<string | null>(null);
   const [sendBackNote, setSendBackNote] = useState('');
+
+  // Edit task modal state
+  const [editingTask, setEditingTask] = useState<Task | null>(null);
 
   const now = Date.now();
 
@@ -327,13 +332,44 @@ export default function TaskTable({ tasks, role, clientName, agencyName, onActio
                       {t.description && <p><b>What to do.</b> {t.description}</p>}
                       {t.impactIfDelayed && <p><b>If it waits.</b> {t.impactIfDelayed}</p>}
                       <p><b>Estimated effect.</b> +{t.estimatedUpliftPct}% organic sessions once live</p>
+                      
                       {linksArr.length > 0 && (
-                        <div className="links">
-                          {linksArr.map((u, i) => (
-                            <a key={i} href={u} target="_blank" rel="noopener noreferrer">
-                              {u.replace(/^https?:\/\//, '').split('/')[0]}
-                            </a>
-                          ))}
+                        <div style={{ marginTop: '12px' }}>
+                          <div style={{ fontSize: '12px', fontWeight: 600, color: 'var(--faint)', marginBottom: '6px' }}>
+                            Attached Links & Resources:
+                          </div>
+                          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                            {linksArr.map((u, i) => {
+                              const icon = u.includes('docs.google.com') ? '📊' : u.includes('figma.com') ? '🎨' : u.includes('drive.google.com') ? '📁' : '🔗';
+                              const label = u.includes('docs.google.com') ? 'Google Sheet' : u.includes('figma.com') ? 'Figma Design' : u.includes('drive.google.com') ? 'Drive Asset' : u.replace(/^https?:\/\//, '').split('/')[0];
+                              return (
+                                <a
+                                  key={i}
+                                  href={u}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  style={{
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    gap: '6px',
+                                    fontSize: '12px',
+                                    fontWeight: 600,
+                                    padding: '6px 12px',
+                                    backgroundColor: 'var(--surface)',
+                                    color: 'var(--ac)',
+                                    border: '1.5px solid var(--ac)',
+                                    borderRadius: '8px',
+                                    textDecoration: 'none',
+                                    boxShadow: '0 1px 3px rgba(0,0,0,0.06)'
+                                  }}
+                                >
+                                  <span>{icon}</span>
+                                  <span>{label}</span>
+                                  <span style={{ fontSize: '11px', opacity: 0.8 }}>↗</span>
+                                </a>
+                              );
+                            })}
+                          </div>
                         </div>
                       )}
                     </div>
@@ -350,8 +386,13 @@ export default function TaskTable({ tasks, role, clientName, agencyName, onActio
                         ))}
                       </div>
                       {role === 'agency' && (
-                        <div style={{ marginTop: '12px' }}>
-                          <button className="btn txt" onClick={() => onAction?.(t.id, 'remove')}>Remove dependency</button>
+                        <div style={{ marginTop: '14px', display: 'flex', gap: '12px', alignItems: 'center' }}>
+                          <button className="btn sm ghost" onClick={() => setEditingTask(t)}>
+                            ✏️ Edit Task
+                          </button>
+                          <button className="btn txt" onClick={() => onAction?.(t.id, 'remove')}>
+                            Remove dependency
+                          </button>
                         </div>
                       )}
                     </div>
@@ -366,6 +407,17 @@ export default function TaskTable({ tasks, role, clientName, agencyName, onActio
           </div>
         )}
       </div>
+
+      {editingTask && (
+        <EditDependencyModal
+          task={editingTask}
+          onClose={() => setEditingTask(null)}
+          onSubmit={async (data) => {
+            await updateDependency(data);
+            setEditingTask(null);
+          }}
+        />
+      )}
 
       {sendBackId && (
         <div className="ov open" role="dialog" aria-modal="true">

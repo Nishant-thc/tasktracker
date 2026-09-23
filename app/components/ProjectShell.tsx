@@ -96,9 +96,13 @@ export default function ProjectShell({
               ) : (
                 <span className="logo">{agencyName.charAt(0)}</span>
               )}
-              <Link href={baseUrl.split('/p/')[0]}>{agencyName}</Link>
+              <Link href={baseUrl.includes('/p/') ? baseUrl.split('/p/')[0] : baseUrl} style={{ color: 'var(--dim)', textDecoration: 'none', fontWeight: 600 }}>
+                {agencyName}
+              </Link>
               <span>/</span>
-              <Link href={baseUrl.split('/p/')[0]}>Portfolio</Link>
+              <Link href={baseUrl.includes('/p/') ? baseUrl.split('/p/')[0] : baseUrl} style={{ color: 'var(--dim)', textDecoration: 'none', fontWeight: 600 }}>
+                Portfolio
+              </Link>
               <span>/</span>
               {clientLogoUrl ? (
                 <img src={clientLogoUrl} alt={clientName} style={{ width: '20px', height: '20px', borderRadius: '4px', objectFit: 'cover' }} />

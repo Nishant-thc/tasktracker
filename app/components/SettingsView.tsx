@@ -14,6 +14,8 @@ type Config = {
   monthly: { on: boolean; day: string };
   googleConnected?: boolean;
   importantLinks?: { id: string; url: string; anchor: string }[];
+  agencyQcEmail?: string;
+  agencyQcSlack?: string;
 };
 
 const defCfg = (): Config => ({
@@ -26,6 +28,8 @@ const defCfg = (): Config => ({
   qcDigest: { on: true, time: '09:30' },
   monthly: { on: true, day: '1' },
   importantLinks: [],
+  agencyQcEmail: '',
+  agencyQcSlack: '',
 });
 
 export default function SettingsView({ 
@@ -295,61 +299,71 @@ export default function SettingsView({
 
       <div className="two">
         <div className="panel">
-          <h2>Notifications</h2>
-          <p className="note" style={{ marginTop: '2px' }}>Where automated updates should be sent.</p>
+          <h2>Client Communication Channels</h2>
+          <p className="note" style={{ marginTop: '2px' }}>Automated updates & digests sent to your client.</p>
           
           <div className="f" style={{ marginTop: '14px' }}>
-            <label>WhatsApp group</label>
-            <input type="text" value={cfg.whatsapp?.to ?? ''} onChange={e => update('whatsapp.to', e.target.value)} placeholder="Group ID or phone number" />
-            <label className="chk" style={{ marginTop: '4px' }}>
-              <input type="checkbox" checked={cfg.whatsapp?.on ?? false} onChange={e => update('whatsapp.on', e.target.checked)} />
-              Send updates to WhatsApp
-            </label>
-          </div>
-
-          <div className="f">
-            <label>Client email</label>
+            <label>Client Email Address</label>
             <input type="email" value={cfg.email?.to ?? ''} onChange={e => update('email.to', e.target.value)} placeholder="hello@client.com" />
             <label className="chk" style={{ marginTop: '4px' }}>
               <input type="checkbox" checked={cfg.email?.on ?? false} onChange={e => update('email.on', e.target.checked)} />
-              Send updates via email
+              Send client updates via email
             </label>
           </div>
 
           <div className="f">
-            <label>Agency Slack channel</label>
-            <input type="text" value={cfg.slack?.channel ?? ''} onChange={e => update('slack.channel', e.target.value)} placeholder="#project-updates" />
+            <label>Client WhatsApp Phone / Group</label>
+            <input type="text" value={cfg.whatsapp?.to ?? ''} onChange={e => update('whatsapp.to', e.target.value)} placeholder="+1234567890 or Group ID" />
+            <label className="chk" style={{ marginTop: '4px' }}>
+              <input type="checkbox" checked={cfg.whatsapp?.on ?? false} onChange={e => update('whatsapp.on', e.target.checked)} />
+              Send client updates to WhatsApp
+            </label>
+          </div>
+
+          <div className="f">
+            <label>Client Shared Slack Channel / Webhook</label>
+            <input type="text" value={cfg.slack?.channel ?? ''} onChange={e => update('slack.channel', e.target.value)} placeholder="#client-updates or webhook URL" />
             <label className="chk" style={{ marginTop: '4px' }}>
               <input type="checkbox" checked={cfg.slack?.on ?? false} onChange={e => update('slack.on', e.target.checked)} />
-              Send QC alerts to Slack
+              Send client updates to Slack
+            </label>
+          </div>
+
+          <div className="f" style={{ marginTop: '14px', borderTop: '1px dashed var(--line)', paddingTop: '10px' }}>
+            <label>Daily Client Digest Schedule</label>
+            <input type="time" value={cfg.clientDigest?.time ?? '09:00'} onChange={e => update('clientDigest.time', e.target.value)} />
+            <label className="chk" style={{ marginTop: '4px' }}>
+              <input type="checkbox" checked={cfg.clientDigest?.on ?? true} onChange={e => update('clientDigest.on', e.target.checked)} />
+              Send daily morning digest to client
             </label>
           </div>
         </div>
 
         <div className="panel">
-          <h2>Schedules</h2>
-          <p className="note" style={{ marginTop: '2px' }}>When automated updates should be sent.</p>
+          <h2>Internal Agency QC Reminders</h2>
+          <p className="note" style={{ marginTop: '2px' }}>Dedicated card for internal agency team alerts when work is ready for Quality Control.</p>
 
           <div className="f" style={{ marginTop: '14px' }}>
-            <label>Daily client digest</label>
-            <input type="time" value={cfg.clientDigest?.time ?? '09:00'} onChange={e => update('clientDigest.time', e.target.value)} />
-            <label className="chk" style={{ marginTop: '4px' }}>
-              <input type="checkbox" checked={cfg.clientDigest?.on ?? true} onChange={e => update('clientDigest.on', e.target.checked)} />
-              Enabled
-            </label>
+            <label>Internal Agency QC Email / Group</label>
+            <input type="email" value={cfg.agencyQcEmail ?? ''} onChange={e => update('agencyQcEmail', e.target.value)} placeholder="qc-team@opositive.agency" />
           </div>
 
           <div className="f">
-            <label>Daily agency QC alert</label>
+            <label>Internal Agency Slack Webhook / Channel</label>
+            <input type="text" value={cfg.agencyQcSlack ?? ''} onChange={e => update('agencyQcSlack', e.target.value)} placeholder="https://hooks.slack.com/... or #agency-qc" />
+          </div>
+
+          <div className="f" style={{ marginTop: '14px', borderTop: '1px dashed var(--line)', paddingTop: '10px' }}>
+            <label>Daily Agency QC Reminder Time</label>
             <input type="time" value={cfg.qcDigest?.time ?? '09:30'} onChange={e => update('qcDigest.time', e.target.value)} />
             <label className="chk" style={{ marginTop: '4px' }}>
               <input type="checkbox" checked={cfg.qcDigest?.on ?? true} onChange={e => update('qcDigest.on', e.target.checked)} />
-              Enabled
+              Send daily QC pending digest to agency team
             </label>
           </div>
 
           <div className="f">
-            <label>Monthly report</label>
+            <label>Monthly Report Generation</label>
             <select value={cfg.monthly?.day ?? '1'} onChange={e => update('monthly.day', e.target.value)}>
               {[1,2,3,4,5,6,7].map(d => (
                 <option key={d} value={d}>Day {d} of month</option>
@@ -357,7 +371,7 @@ export default function SettingsView({
             </select>
             <label className="chk" style={{ marginTop: '4px' }}>
               <input type="checkbox" checked={cfg.monthly?.on ?? true} onChange={e => update('monthly.on', e.target.checked)} />
-              Enabled
+              Auto-generate monthly performance report
             </label>
           </div>
         </div>
