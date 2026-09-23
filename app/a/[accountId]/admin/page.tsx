@@ -204,7 +204,7 @@ export default async function AdminDashboard({ params }: { params: Promise<{ acc
         <div className="panel" style={{ padding: '0' }}>
           <div style={{ padding: '16px 24px', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <h3 style={{ margin: 0, fontSize: '16px' }}>Project Assignment</h3>
-            <NewProjectModal accountId={account.id} accountManagers={amUsers} />
+            <NewProjectModal accountId={account.id} accountManagers={amUsers.map(u => ({ id: u.id, name: u.name }))} currentUserId={userId} />
           </div>
           <table className="gt">
             <thead>

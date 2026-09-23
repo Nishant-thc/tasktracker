@@ -43,6 +43,14 @@ export default async function AgencyPortfolioPage({ params }: { params: Promise<
     include: { memberships: { where: { accountId: account.id } } }
   });
 
+  const amUsers = users
+    .filter(u => u.memberships.some(m => m.accountId === account.id && (m.role === 'am' || m.role === 'admin' || m.role === 'owner')))
+    .map(u => ({ id: u.id, name: u.name }));
+
+  if (userId && !amUsers.some(u => u.id === userId)) {
+    amUsers.push({ id: userId, name: session?.name || 'Account Manager' });
+  }
+
   const displayProjects = role === 'am' && userId
     ? account.projects.filter(p => p.accountManagerId === userId)
     : account.projects;
@@ -109,7 +117,7 @@ export default async function AgencyPortfolioPage({ params }: { params: Promise<
           <p>Account {account.accountNumber} &bull; {totalProjects} projects</p>
         </div>
         <div className="acts">
-          <NewProjectModal accountId={account.id} />
+          <NewProjectModal accountId={account.id} accountManagers={amUsers} currentUserId={userId} />
         </div>
       </div>
 

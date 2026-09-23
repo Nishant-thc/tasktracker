@@ -13,21 +13,36 @@ type AmUser = { id: string; name: string | null };
 export default function NewProjectModal({
   accountId,
   accountManagers = [],
+  currentUserId,
 }: {
   accountId: string;
   accountManagers?: AmUser[];
+  currentUserId?: string | null;
 }) {
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
+
+  // Pre-select current user if available or single AM in list
+  const defaultAm = (currentUserId && accountManagers.some(a => a.id === currentUserId))
+    ? currentUserId
+    : (currentUserId || (accountManagers.length > 0 ? accountManagers[0].id : ''));
+
   const [form, setForm] = useState({
     clientName: '',
     name: '',
     type: 'Retainer',
     category: 'SEO',
     status: 'active',
-    accountManagerId: '',
+    accountManagerId: defaultAm,
   });
   const router = useRouter();
+
+  // Ensure defaultAm is synced when modal opens or props change
+  React.useEffect(() => {
+    if (defaultAm && !form.accountManagerId) {
+      setForm(f => ({ ...f, accountManagerId: defaultAm }));
+    }
+  }, [defaultAm]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -40,7 +55,7 @@ export default function NewProjectModal({
         type: form.type,
         category: form.category,
         status: form.status,
-        accountManagerId: form.accountManagerId || null,
+        accountManagerId: form.accountManagerId || currentUserId || null,
       });
       setOpen(false);
       router.push(`/a/${accountId}/p/${project.id}`);
@@ -118,12 +133,14 @@ export default function NewProjectModal({
                     {STATUSES.map(s => <option key={s} value={s}>{s.charAt(0).toUpperCase() + s.slice(1)}</option>)}
                   </select>
                 ))}
-                {field('Assign Account Manager', (
+                {field('Account Manager', (
                   <select id="np-am" style={inputStyle} value={form.accountManagerId}
                     onChange={e => setForm(f => ({ ...f, accountManagerId: e.target.value }))}>
                     <option value="">Unassigned</option>
                     {accountManagers.map(am => (
-                      <option key={am.id} value={am.id}>{am.name || am.id}</option>
+                      <option key={am.id} value={am.id}>
+                        {am.id === currentUserId ? `⭐ ${am.name || 'Account Manager'} (You)` : (am.name || am.id)}
+                      </option>
                     ))}
                   </select>
                 ))}
