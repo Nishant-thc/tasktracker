@@ -1,4 +1,5 @@
 import { cookies } from 'next/headers';
+import { getIronSession } from 'iron-session';
 
 export type SessionUser = {
   id: string;
@@ -6,49 +7,72 @@ export type SessionUser = {
   name: string | null;
   role: string;
   accountId: string;
+  _ts?: number;
 };
 
 const SESSION_COOKIE = 'tt_session';
-const SECRET = process.env.SESSION_SECRET || 'fallback-dev-secret-change-me';
 
-function base64url(str: string) {
-  return Buffer.from(str).toString('base64url');
-}
-
-function fromBase64url(str: string) {
-  return Buffer.from(str, 'base64url').toString('utf8');
-}
-
-export async function setSession(user: SessionUser) {
-  const payload = base64url(JSON.stringify({ ...user, _ts: Date.now() }));
-  const sig = base64url(SECRET + payload);
-  const token = `${payload}.${sig}`;
-  const cookieStore = await cookies();
-  cookieStore.set(SESSION_COOKIE, token, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'lax',
-    path: '/',
-    maxAge: 60 * 60 * 24 * 7, // 7 days
-  });
+function getSecret() {
+  const secret = process.env.SESSION_SECRET;
+  if (!secret || secret.length < 32) {
+    throw new Error('SESSION_SECRET environment variable is missing or too short. It must be at least 32 characters long.');
+  }
+  return secret;
 }
 
 export async function getSession(): Promise<SessionUser | null> {
-  try {
-    const cookieStore = await cookies();
-    const token = cookieStore.get(SESSION_COOKIE)?.value;
-    if (!token) return null;
-    const [payload, sig] = token.split('.');
-    const expectedSig = base64url(SECRET + payload);
-    if (sig !== expectedSig) return null;
-    const data = JSON.parse(fromBase64url(payload));
-    return data as SessionUser;
-  } catch {
+  const cookieStore = await cookies();
+  const session = await getIronSession<SessionUser>(cookieStore, {
+    cookieName: SESSION_COOKIE,
+    password: getSecret(),
+    cookieOptions: {
+      secure: process.env.NODE_ENV === 'production',
+      httpOnly: true,
+      sameSite: 'lax',
+      path: '/',
+    },
+  });
+
+  if (!session.id) return null;
+
+  // Check 7-day expiry
+  if (session._ts && Date.now() - session._ts > 7 * 24 * 60 * 60 * 1000) {
+    session.destroy();
     return null;
   }
+
+  return session as SessionUser;
+}
+
+export async function setSession(user: SessionUser) {
+  const cookieStore = await cookies();
+  const session = await getIronSession<SessionUser>(cookieStore, {
+    cookieName: SESSION_COOKIE,
+    password: getSecret(),
+    cookieOptions: {
+      secure: process.env.NODE_ENV === 'production',
+      httpOnly: true,
+      sameSite: 'lax',
+      path: '/',
+      maxAge: 7 * 24 * 60 * 60, // 7 days
+    },
+  });
+
+  session.id = user.id;
+  session.email = user.email;
+  session.name = user.name;
+  session.role = user.role;
+  session.accountId = user.accountId;
+  session._ts = Date.now();
+
+  await session.save();
 }
 
 export async function clearSession() {
   const cookieStore = await cookies();
-  cookieStore.delete(SESSION_COOKIE);
+  const session = await getIronSession<SessionUser>(cookieStore, {
+    cookieName: SESSION_COOKIE,
+    password: getSecret(),
+  });
+  session.destroy();
 }

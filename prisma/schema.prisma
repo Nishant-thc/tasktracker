@@ -3,8 +3,9 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 model Account {
@@ -42,8 +43,8 @@ model Membership {
   userId    String
   role      String   // owner, admin, am, member
   status    String   @default("active")
-  account   Account  @relation(fields: [accountId], references: [id])
-  user      User     @relation(fields: [userId], references: [id])
+  account   Account  @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   @@unique([accountId, userId])
@@ -59,7 +60,7 @@ model Project {
   category           String?         // SEO, PPC, Content, CRO, Social, Email, Tech, Other
   status             String          @default("active") // active, paused, completed, archived
   projectToken       String          @unique @default(uuid())
-  account            Account         @relation(fields: [accountId], references: [id])
+  account            Account         @relation(fields: [accountId], references: [id], onDelete: Cascade)
   accountManagerId   String?
   accountManager     User?           @relation("ProjectAM", fields: [accountManagerId], references: [id])
   dependencies       Dependency[]
@@ -81,7 +82,7 @@ model ClientContact {
   name        String
   email       String
   role        String   // contributor, viewer
-  project     Project  @relation(fields: [projectId], references: [id])
+  project     Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
   user        User?    @relation(fields: [userId], references: [id])
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
@@ -105,7 +106,7 @@ model Dependency {
   category           String?
   reworkCount        Int       @default(0)
   sentBackNote       String?
-  project            Project   @relation(fields: [projectId], references: [id])
+  project            Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
   createdAt          DateTime  @default(now())
   updatedAt          DateTime  @updatedAt
 }
@@ -122,8 +123,8 @@ model MessageLog {
   body       String
   sentAt     DateTime @default(now())
   readAt     DateTime?
-  project    Project  @relation(fields: [projectId], references: [id])
-  account    Account  @relation(fields: [accountId], references: [id])
+  project    Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  account    Account  @relation(fields: [accountId], references: [id], onDelete: Cascade)
 }
 
 model InviteToken {
@@ -135,5 +136,28 @@ model InviteToken {
   usedAt    DateTime?
   expiresAt DateTime
   createdAt DateTime  @default(now())
-  account   Account   @relation(fields: [accountId], references: [id])
+  account   Account   @relation(fields: [accountId], references: [id], onDelete: Cascade)
 }
+
+model JobRun {
+  id          String   @id @default(uuid())
+  jobType     String
+  projectId   String?
+  localDate   String
+  status      String
+  runAt       DateTime @default(now())
+  
+  @@unique([jobType, projectId, localDate])
+}
+
+model QueueMessage {
+  id          String   @id @default(uuid())
+  queueName   String
+  payload     String
+  status      String   @default("queued") // queued, processing, completed, failed
+  attempts    Int      @default(0)
+  lockedAt    DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+

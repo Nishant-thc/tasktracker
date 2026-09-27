@@ -4,7 +4,7 @@ import { notFound, redirect } from 'next/navigation';
 import Link from 'next/link';
 import { getSession } from '@/app/lib/session';
 import ThemeToggle from '@/app/components/ThemeToggle';
-import RoleSwitcher from '@/app/components/RoleSwitcher';
+
 import AdminIntegrations from './AdminIntegrations';
 import AmAssigner from './AmAssigner';
 import InviteAmModal from './InviteAmModal';
@@ -13,8 +13,11 @@ import NewProjectModal from '../NewProjectModal';
 export default async function AdminDashboard({ params }: { params: Promise<{ accountId: string }> }) {
   const resolvedParams = await params;
   const session = await getSession();
-  const role = session?.role || 'admin';
-  const userId = session?.id || null;
+  if (!session) {
+    redirect('/auth/login');
+  }
+  const role = session.role;
+  const userId = session.id;
 
   // ACCESS CONTROL: Only Admins can access this page
   if (role !== 'admin') {
@@ -105,7 +108,7 @@ export default async function AdminDashboard({ params }: { params: Promise<{ acc
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
           <span className="wait">Admin View</span>
-          <RoleSwitcher users={users.map(u => ({ ...u, role: u.memberships[0]?.role || 'am' }))} currentUserId={userId} />
+
           <ThemeToggle />
         </div>
       </header>

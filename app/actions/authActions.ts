@@ -4,17 +4,14 @@ import { prisma } from '../lib/prisma';
 import { setSession, clearSession } from '../lib/session';
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
-import * as crypto from 'crypto';
+import bcrypt from 'bcryptjs';
 
 function hashPassword(password: string): string {
-  // Simple SHA256 + SECRET hash for deployment without native bcrypt issues.
-  // For production, swap in bcryptjs once confirmed working.
-  const secret = process.env.SESSION_SECRET || 'fallback-dev-secret';
-  return crypto.createHmac('sha256', secret).update(password).digest('hex');
+  return bcrypt.hashSync(password, 10);
 }
 
 function verifyPassword(password: string, hash: string): boolean {
-  return hashPassword(password) === hash;
+  return bcrypt.compareSync(password, hash);
 }
 
 export async function login(email: string, password: string) {
@@ -85,7 +82,7 @@ export async function inviteUser(accountId: string, email: string, role: 'am' | 
   console.log(`[INVITE EMAIL] To: ${email}, URL: ${inviteUrl}`);
 
   revalidatePath(`/a/${accountId}/admin`);
-  return { success: true, inviteUrl };
+  return { success: true };
 }
 
 export async function acceptInvite(token: string, name: string, password: string) {
@@ -135,9 +132,3 @@ export async function acceptInvite(token: string, name: string, password: string
   return { success: true, accountId: invite.accountId };
 }
 
-export async function seedAdminPassword(email: string, newPassword: string) {
-  // Dev-only: set a password on an existing user
-  const hash = hashPassword(newPassword);
-  await prisma.user.update({ where: { email }, data: { passwordHash: hash } });
-  return { success: true };
-}

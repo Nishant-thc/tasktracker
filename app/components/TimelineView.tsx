@@ -42,9 +42,12 @@ export default function TimelineView({ tasks }: { tasks: Task[] }) {
   const ganttScrollRef = React.useRef<HTMLDivElement>(null);
 
   React.useEffect(() => {
-    if (ganttScrollRef.current) {
-      ganttScrollRef.current.scrollLeft = ganttScrollRef.current.scrollWidth;
-    }
+    const timer = setTimeout(() => {
+      if (ganttScrollRef.current) {
+        ganttScrollRef.current.scrollLeft = ganttScrollRef.current.scrollWidth;
+      }
+    }, 50);
+    return () => clearTimeout(timer);
   }, [tasks, showClosed]);
 
   if (!tasks.length) {
@@ -66,7 +69,7 @@ export default function TimelineView({ tasks }: { tasks: Task[] }) {
   const timelineWidth = Math.max(800, Math.min(1400, spanDays * 8.5));
   const x1 = timelineWidth - 20;
 
-  const act = tasks.filter(t => t.status !== 'closed').sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+  const act = tasks.filter(t => t.status !== 'closed').sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
   const done = tasks.filter(t => t.status === 'closed').sort((a, b) => (new Date(b.closedAt || 0).getTime()) - (new Date(a.closedAt || 0).getTime()));
 
   const totalRows = act.length + (done.length ? (showClosed ? done.length + 1 : 1) : 0);

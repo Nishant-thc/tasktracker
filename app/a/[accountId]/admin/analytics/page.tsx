@@ -1,6 +1,6 @@
 import React from 'react';
 import { prisma } from '@/app/lib/prisma';
-import { notFound } from 'next/navigation';
+import { notFound, redirect } from 'next/navigation';
 import Link from 'next/link';
 import AnalyticsCharts from './AnalyticsCharts';
 
@@ -12,6 +12,11 @@ function getWeekLabel(date: Date) {
 
 export default async function AdminAnalyticsPage({ params }: { params: Promise<{ accountId: string }> }) {
   const { accountId } = await params;
+  const session = await getSession();
+
+  if (!session || session.role !== 'admin') {
+    redirect('/auth/login');
+  }
 
   const account = await prisma.account.findUnique({
     where: { id: accountId },

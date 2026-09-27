@@ -1,6 +1,6 @@
 import React from 'react';
 import { prisma } from '@/app/lib/prisma';
-import { notFound } from 'next/navigation';
+import { notFound, redirect } from 'next/navigation';
 import PortfolioShell from '@/app/components/PortfolioShell';
 import { getSession } from '@/app/lib/session';
 import ActivityFeedClient, { ActivityEvent } from '@/app/components/ActivityFeedClient';
@@ -8,8 +8,11 @@ import ActivityFeedClient, { ActivityEvent } from '@/app/components/ActivityFeed
 export default async function AgencyActivityPage({ params }: { params: Promise<{ accountId: string }> }) {
   const resolvedParams = await params;
   const session = await getSession();
-  const role = session?.role || 'admin';
-  const userId = session?.id || null;
+  if (!session) {
+    redirect('/auth/login');
+  }
+  const role = session.role;
+  const userId = session.id;
 
   const account = await prisma.account.findUnique({
     where: { id: resolvedParams.accountId },

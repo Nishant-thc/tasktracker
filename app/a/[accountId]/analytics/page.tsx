@@ -1,6 +1,6 @@
 import React from 'react';
 import { prisma } from '@/app/lib/prisma';
-import { notFound } from 'next/navigation';
+import { notFound, redirect } from 'next/navigation';
 import { getSession } from '@/app/lib/session';
 import PortfolioShell from '@/app/components/PortfolioShell';
 import AmAnalyticsCharts from './AmAnalyticsCharts';
@@ -14,8 +14,11 @@ function getWeekLabel(date: Date) {
 export default async function AmAnalyticsPage({ params }: { params: Promise<{ accountId: string }> }) {
   const { accountId } = await params;
   const session = await getSession();
-  const amId = session?.id || null;
-  const role = session?.role || 'admin';
+  if (!session) {
+    redirect('/auth/login');
+  }
+  const amId = session.id;
+  const role = session.role;
 
   const account = await prisma.account.findUnique({
     where: { id: accountId },

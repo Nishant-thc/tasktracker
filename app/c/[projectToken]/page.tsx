@@ -57,7 +57,10 @@ export default async function ClientProjectPage({ params }: { params: Promise<{ 
             role="client"
             clientName={project.clientName}
             agencyName={project.account.name}
-            onAction={executeTaskAction}
+            onAction={async (taskId, action, note) => {
+              'use server';
+              await executeTaskAction(taskId, action, note, project.projectToken);
+            }}
           />
         </>
       )}

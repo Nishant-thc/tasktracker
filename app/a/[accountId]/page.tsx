@@ -5,6 +5,7 @@ import { prisma } from '@/app/lib/prisma';
 import { getSession } from '@/app/lib/session';
 import PortfolioShell from '@/app/components/PortfolioShell';
 import NewProjectModal from './NewProjectModal';
+import { redirect } from 'next/navigation';
 
 export default async function AgencyPortfolioPage({ params }: { params: Promise<{ accountId: string }> }) {
   const resolvedParams = await params;
@@ -34,9 +35,11 @@ export default async function AgencyPortfolioPage({ params }: { params: Promise<
   if (!account) notFound();
 
   const session = await getSession();
-  // Allow access if session matches OR default to admin for legacy access
-  const role = session?.role || 'admin';
-  const userId = session?.id || null;
+  if (!session) {
+    redirect('/auth/login');
+  }
+  const role = session.role;
+  const userId = session.id;
 
   const users = await prisma.user.findMany({
     where: { memberships: { some: { accountId: account.id } } },
@@ -120,7 +123,7 @@ export default async function AgencyPortfolioPage({ params }: { params: Promise<
       </div>
 
       <div className="strip">
-        <div className="stats" style={{ gridTemplateColumns: 'repeat(6, 1fr)' }}>
+        <div className="stats" style={{ gridTemplateColumns: 'repeat(5, 1fr)' }}>
           <div className="stat">
             <span>Projects</span>
             <b>{totalProjects}</b>

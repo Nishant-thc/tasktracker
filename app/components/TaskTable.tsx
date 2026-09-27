@@ -29,7 +29,7 @@ type TaskTableProps = {
   role: 'agency' | 'client';
   clientName: string;
   agencyName: string;
-  onAction?: (taskId: string, action: string, note?: string) => void;
+  onAction?: (taskId: string, action: string, note?: string) => Promise<void> | void;
 };
 
 const P: Record<string, { short: string; c: string; s: string; r: number }> = {
@@ -77,6 +77,15 @@ export default function TaskTable({ tasks, role, clientName, agencyName, onActio
   const [editingTask, setEditingTask] = useState<Task | null>(null);
 
   const now = Date.now();
+
+  const handleAction = async (taskId: string, action: string, note?: string) => {
+    if (!onAction) return;
+    try {
+      await onAction(taskId, action, note);
+    } catch (e: any) {
+      alert(e.message || 'Failed to execute action.');
+    }
+  };
 
   const toggleTask = (id: string) => {
     const isOpening = !openTasks[id];
@@ -298,20 +307,20 @@ export default function TaskTable({ tasks, role, clientName, agencyName, onActio
                 <div className="rowact">
                   {t.status === 'pending' ? (
                     role === 'client' ? (
-                      <button className="btn sm" onClick={() => onAction?.(t.id, 'start')}>Start work</button>
+                      <button className="btn sm" onClick={() => handleAction(t.id, 'start')}>Start work</button>
                     ) : (
                       <span className="wait">Waiting for {clientName}</span>
                     )
                   ) : t.status === 'in_progress' ? (
                     role === 'client' ? (
-                      <button className="btn sm" onClick={() => onAction?.(t.id, 'implement')}>Mark implemented</button>
+                      <button className="btn sm" onClick={() => handleAction(t.id, 'implement')}>Mark implemented</button>
                     ) : (
                       <span className="wait">{clientName} working</span>
                     )
                   ) : t.status === 'qc' ? (
                     role === 'agency' ? (
                       <>
-                        <button className="btn sm" onClick={() => onAction?.(t.id, 'approve')}>Close</button>
+                        <button className="btn sm" onClick={() => handleAction(t.id, 'approve')}>Close</button>
                         <button className="btn sm ghost" onClick={() => setSendBackId(t.id)}>Send back</button>
                       </>
                     ) : (
@@ -319,7 +328,7 @@ export default function TaskTable({ tasks, role, clientName, agencyName, onActio
                     )
                   ) : (
                     role === 'agency' && (
-                      <button className="btn sm ghost" onClick={() => onAction?.(t.id, 'reopen')}>Reopen</button>
+                      <button className="btn sm ghost" onClick={() => handleAction(t.id, 'reopen')}>Reopen</button>
                     )
                   )}
                 </div>
@@ -355,13 +364,16 @@ export default function TaskTable({ tasks, role, clientName, agencyName, onActio
                                     fontSize: '12px',
                                     fontWeight: 600,
                                     padding: '6px 12px',
-                                    backgroundColor: 'var(--surface)',
-                                    color: 'var(--ac)',
-                                    border: '1.5px solid var(--ac)',
+                                    backgroundColor: 'var(--ac)',
+                                    color: '#fff',
+                                    border: 'none',
                                     borderRadius: '8px',
                                     textDecoration: 'none',
-                                    boxShadow: '0 1px 3px rgba(0,0,0,0.06)'
+                                    boxShadow: '0 2px 5px rgba(47,91,234,0.3)',
+                                    transition: 'transform 0.1s'
                                   }}
+                                  onMouseOver={(e) => e.currentTarget.style.transform = 'scale(1.02)'}
+                                  onMouseOut={(e) => e.currentTarget.style.transform = 'scale(1)'}
                                 >
                                   <span>{icon}</span>
                                   <span>{label}</span>
@@ -390,7 +402,7 @@ export default function TaskTable({ tasks, role, clientName, agencyName, onActio
                           <button className="btn sm ghost" onClick={() => setEditingTask(t)}>
                             ✏️ Edit Task
                           </button>
-                          <button className="btn txt" onClick={() => onAction?.(t.id, 'remove')}>
+                          <button className="btn txt" onClick={() => handleAction(t.id, 'remove')}>
                             Remove dependency
                           </button>
                         </div>
@@ -437,9 +449,9 @@ export default function TaskTable({ tasks, role, clientName, agencyName, onActio
               <button className="btn ghost" onClick={() => { setSendBackId(null); setSendBackNote(''); }}>Cancel</button>
               <button
                 className="btn"
-                onClick={() => {
+                onClick={async () => {
                   if (sendBackNote.trim().length < 10) return alert('Note must be at least 10 characters.');
-                  onAction?.(sendBackId, 'sendback', sendBackNote);
+                  await handleAction(sendBackId, 'sendback', sendBackNote);
                   setSendBackId(null);
                   setSendBackNote('');
                 }}

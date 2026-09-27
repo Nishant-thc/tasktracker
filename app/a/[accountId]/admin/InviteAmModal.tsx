@@ -18,7 +18,7 @@ export default function InviteAmModal({ accountId }: { accountId: string }) {
       if (res?.error) {
         setResult({ error: res.error });
       } else {
-        setResult({ url: res?.inviteUrl });
+        setResult({ url: 'sent' });
         setEmail('');
       }
     });
@@ -45,23 +45,15 @@ export default function InviteAmModal({ accountId }: { accountId: string }) {
               <button onClick={() => setOpen(false)} style={{ background: 'none', border: 'none', fontSize: '20px', cursor: 'pointer', color: 'var(--faint)' }}>✕</button>
             </div>
 
-            {result?.url ? (
+            {result?.url === 'sent' ? (
               <div>
                 <div style={{
                   background: 'rgba(34,197,94,0.08)', border: '1px solid rgba(34,197,94,0.25)',
                   borderRadius: '10px', padding: '16px', marginBottom: '16px',
                 }}>
-                  <p style={{ margin: '0 0 8px', fontWeight: 600, color: 'var(--s-done)' }}>✓ Invite Created!</p>
-                  <p style={{ margin: '0 0 8px', fontSize: '13px', color: 'var(--faint)' }}>Share this link with your team member:</p>
-                  <code style={{
-                    display: 'block', padding: '10px', borderRadius: '8px',
-                    background: 'var(--bg)', fontSize: '12px', wordBreak: 'break-all',
-                    color: 'var(--hi)',
-                  }}>{result.url}</code>
+                  <p style={{ margin: '0 0 8px', fontWeight: 600, color: 'var(--s-done)' }}>✓ Invite Sent!</p>
+                  <p style={{ margin: '0 0 8px', fontSize: '13px', color: 'var(--faint)' }}>An email has been sent to the new team member.</p>
                 </div>
-                <button className="btn ghost" onClick={() => { navigator.clipboard.writeText(result.url!); }}>
-                  Copy Link
-                </button>
               </div>
             ) : (
               <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>

@@ -57,10 +57,12 @@ export default function AddDependencyModal({ projectId, onClose, onSubmit }: Add
           aria-label="Close dialog"
           style={{
             position: 'absolute', top: '16px', right: '16px',
-            background: 'none', border: 0, fontSize: '18px', fontWeight: 600,
-            color: 'var(--faint)', cursor: 'pointer', padding: '4px 8px', borderRadius: '6px',
-            lineHeight: 1,
+            background: 'var(--line2)', border: '1px solid var(--line)', fontSize: '16px', fontWeight: 600,
+            color: 'var(--dim)', cursor: 'pointer', padding: '6px 10px', borderRadius: '8px',
+            lineHeight: 1, transition: 'all 0.2s', boxShadow: '0 1px 2px rgba(0,0,0,0.05)'
           }}
+          onMouseOver={(e) => { e.currentTarget.style.background = 'var(--line)'; e.currentTarget.style.color = 'var(--ink)'; }}
+          onMouseOut={(e) => { e.currentTarget.style.background = 'var(--line2)'; e.currentTarget.style.color = 'var(--dim)'; }}
         >
           ✕
         </button>

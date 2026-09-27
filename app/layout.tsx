@@ -21,20 +21,7 @@ export default function RootLayout({
   return (
     <html lang="en" className={`${hankenGrotesk.variable}`} suppressHydrationWarning>
       <body suppressHydrationWarning>
-        <script
-          dangerouslySetInnerHTML={{
-            __html: `
-              (function() {
-                try {
-                  var saved = localStorage.getItem('theme');
-                  if (saved === 'dark' || saved === 'light') {
-                    document.documentElement.setAttribute('data-theme', saved);
-                  }
-                } catch (e) {}
-              })();
-            `,
-          }}
-        />
+
         <div id="app" className="wrap">
           {children}
           <footer style={{ textAlign: 'center', padding: '40px 20px 20px', fontSize: '12px', color: 'var(--faint)' }}>

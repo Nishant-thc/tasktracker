@@ -7,12 +7,14 @@ type CommConfig = {
   whatsapp: { enabled: boolean; apiToken: string; phoneNumberId: string; businessAccountId: string };
   slack: { enabled: boolean; webhookUrl: string; botToken: string; defaultChannel: string };
   email: { enabled: boolean; smtpHost: string; smtpPort: string; smtpUser: string; smtpPass: string; fromEmail: string };
+  google: { enabled: boolean; serviceAccountEmail: string; serviceAccountKey: string };
 };
 
 const DEFAULT_CONFIG: CommConfig = {
   whatsapp: { enabled: false, apiToken: '', phoneNumberId: '', businessAccountId: '' },
   slack: { enabled: false, webhookUrl: '', botToken: '', defaultChannel: '#client-updates' },
   email: { enabled: false, smtpHost: '', smtpPort: '587', smtpUser: '', smtpPass: '', fromEmail: '' },
+  google: { enabled: false, serviceAccountEmail: '', serviceAccountKey: '' },
 };
 
 function parseConfig(raw: Record<string, unknown>): CommConfig {
@@ -20,10 +22,12 @@ function parseConfig(raw: Record<string, unknown>): CommConfig {
   if (raw.whatsapp && typeof raw.whatsapp === 'object') base.whatsapp = { ...base.whatsapp, ...(raw.whatsapp as object) };
   if (raw.slack && typeof raw.slack === 'object') base.slack = { ...base.slack, ...(raw.slack as object) };
   if (raw.email && typeof raw.email === 'object') base.email = { ...base.email, ...(raw.email as object) };
+  if (raw.google && typeof raw.google === 'object') base.google = { ...base.google, ...(raw.google as object) };
   // Handle legacy boolean format
   if (typeof raw.whatsapp === 'boolean') base.whatsapp.enabled = raw.whatsapp;
   if (typeof raw.slack === 'boolean') base.slack.enabled = raw.slack;
   if (typeof raw.email === 'boolean') base.email.enabled = raw.email;
+  if (typeof raw.google === 'boolean') base.google.enabled = raw.google;
   return base;
 }
 
@@ -76,6 +80,18 @@ const PROVIDERS = [
       { key: 'fromEmail', label: 'From Email Address', placeholder: 'hello@youragency.com', type: 'text' },
     ],
   },
+  {
+    key: 'google' as const,
+    label: 'Google (GA4 & GSC)',
+    icon: '📊',
+    color: '#ea4335',
+    docsUrl: 'https://developers.google.com/workspace/guides/create-credentials#service-account',
+    description: 'Read metrics from Google Analytics 4 and Search Console using a Service Account',
+    fields: [
+      { key: 'serviceAccountEmail', label: 'Service Account Email', placeholder: 'tracker@...iam.gserviceaccount.com', type: 'text' },
+      { key: 'serviceAccountKey', label: 'Private Key', placeholder: '-----BEGIN PRIVATE KEY-----\n...', type: 'password' },
+    ],
+  },
 ];
 
 export default function AdminIntegrations({
@@ -91,13 +107,13 @@ export default function AdminIntegrations({
   const [expanded, setExpanded] = useState<string | null>(null);
   const [showPass, setShowPass] = useState<Record<string, boolean>>({});
 
-  const toggleProvider = (key: 'whatsapp' | 'slack' | 'email') => {
-    setConfig(c => ({ ...c, [key]: { ...c[key], enabled: !c[key].enabled } }));
+  const toggleProvider = (key: keyof CommConfig) => {
+    setConfig(c => ({ ...c, [key]: { ...c[key], enabled: !c[key].enabled } as any }));
     if (!config[key].enabled) setExpanded(key); // auto-expand when enabling
   };
 
-  const setField = (provider: 'whatsapp' | 'slack' | 'email', field: string, value: string) => {
-    setConfig(c => ({ ...c, [provider]: { ...c[provider], [field]: value } }));
+  const setField = (provider: keyof CommConfig, field: string, value: string) => {
+    setConfig(c => ({ ...c, [provider]: { ...c[provider], [field]: value } as any }));
   };
 
   const handleSave = async () => {
@@ -117,7 +133,7 @@ export default function AdminIntegrations({
           return (
             <button
               key={key}
-              onClick={() => { toggleProvider(key); setExpanded(prev => prev === key ? null : key); }}
+              onClick={() => { setExpanded(prev => prev === key ? null : key); }}
               style={{
                 display: 'flex', alignItems: 'center', gap: '8px',
                 padding: '10px 18px', borderRadius: '10px', cursor: 'pointer',
@@ -169,15 +185,15 @@ export default function AdminIntegrations({
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
                   <span style={{ fontSize: '20px' }}>{icon}</span>
                   <strong style={{ color, fontSize: '15px' }}>{label}</strong>
-                  <span style={{
+                  <button onClick={() => toggleProvider(key)} style={{
                     fontSize: '11px', padding: '2px 8px', borderRadius: '99px',
                     background: config[key].enabled ? `${color}25` : 'var(--bg)',
                     color: config[key].enabled ? color : 'var(--faint)',
                     border: `1px solid ${config[key].enabled ? color : 'var(--border)'}`,
-                    fontWeight: 600,
+                    fontWeight: 600, cursor: 'pointer',
                   }}>
                     {config[key].enabled ? 'Enabled' : 'Disabled'}
-                  </span>
+                  </button>
                 </div>
                 <p style={{ margin: 0, fontSize: '13px', color: 'var(--faint)' }}>{description}</p>
               </div>
@@ -264,6 +280,23 @@ export default function AdminIntegrations({
                     <li>SMTP Username: <code>resend</code></li>
                     <li>SMTP Password: your Resend API key (starts with <code>re_</code>)</li>
                     <li>Add your domain in Resend → verify DNS → use <code>you@yourdomain.com</code> as From address</li>
+                  </ol>
+                </details>
+              </div>
+            )}
+            {key === 'google' && (
+              <div style={{ padding: '0 20px 20px' }}>
+                <details>
+                  <summary style={{ fontSize: '13px', color: 'var(--faint)', cursor: 'pointer', marginBottom: '8px' }}>
+                    📖 How to create a Google Service Account
+                  </summary>
+                  <ol style={{ fontSize: '13px', color: 'var(--faint)', paddingLeft: '20px', lineHeight: 2 }}>
+                    <li>Go to <a href="https://console.cloud.google.com" target="_blank" rel="noreferrer" style={{ color }}>Google Cloud Console</a> and create a project</li>
+                    <li>Enable <strong>Google Analytics API</strong> and <strong>Google Search Console API</strong></li>
+                    <li>Go to IAM & Admin → Service Accounts → Create Service Account</li>
+                    <li>Create a JSON Key for the new service account</li>
+                    <li>Paste the Service Account Email and Private Key above</li>
+                    <li>In your GA4 Property and Search Console, add the Service Account Email as a Viewer/User</li>
                   </ol>
                 </details>
               </div>

@@ -1,7 +1,9 @@
 import React from 'react';
 import { prisma } from '@/app/lib/prisma';
-import { notFound } from 'next/navigation';
+import { notFound, redirect } from 'next/navigation';
 import Link from 'next/link';
+import { getSession } from '@/app/lib/session';
+import CommsFilters from './CommsFilters';
 
 const CHANNEL_ICONS: Record<string, string> = {
   email: '✉️',
@@ -26,6 +28,11 @@ export default async function CommsLogPage({
 }) {
   const { accountId } = await params;
   const { projectId, channel, days = '30' } = await searchParams;
+  const session = await getSession();
+
+  if (!session || session.role !== 'admin') {
+    redirect('/auth/login');
+  }
 
   const account = await prisma.account.findUnique({
     where: { id: accountId },
@@ -61,41 +68,12 @@ export default async function CommsLogPage({
 
       {/* Filters */}
       <div style={{ padding: '0 24px 20px', display: 'flex', gap: '12px', flexWrap: 'wrap', maxWidth: '1200px', margin: '0 auto' }}>
-        <form style={{ display: 'contents' }}>
-          <select name="projectId" defaultValue={projectId || ''} onChange={e => {
-            const url = new URL(window.location.href);
-            url.searchParams.set('projectId', e.target.value);
-            window.location.href = url.toString();
-          }} style={{ padding: '8px 12px', borderRadius: '8px', border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--ink)' }}>
-            <option value="">All Projects</option>
-            {account.projects.map(p => (
-              <option key={p.id} value={p.id}>{p.clientName} — {p.name}</option>
-            ))}
-          </select>
-
-          <select name="channel" defaultValue={channel || ''} onChange={e => {
-            const url = new URL(window.location.href);
-            url.searchParams.set('channel', e.target.value);
-            window.location.href = url.toString();
-          }} style={{ padding: '8px 12px', borderRadius: '8px', border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--ink)' }}>
-            <option value="">All Channels</option>
-            <option value="email">Email</option>
-            <option value="slack">Slack</option>
-            <option value="whatsapp">WhatsApp</option>
-            <option value="system">System Events</option>
-          </select>
-
-          <select name="days" defaultValue={days} onChange={e => {
-            const url = new URL(window.location.href);
-            url.searchParams.set('days', e.target.value);
-            window.location.href = url.toString();
-          }} style={{ padding: '8px 12px', borderRadius: '8px', border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--ink)' }}>
-            <option value="7">Last 7 days</option>
-            <option value="30">Last 30 days</option>
-            <option value="90">Last 90 days</option>
-            <option value="365">Last year</option>
-          </select>
-        </form>
+        <CommsFilters 
+          projects={account.projects} 
+          defaultProjectId={projectId || ''} 
+          defaultChannel={channel || ''} 
+          defaultDays={days} 
+        />
         <span style={{ color: 'var(--faint)', alignSelf: 'center', fontSize: '13px' }}>
           {logs.length} event{logs.length !== 1 ? 's' : ''}
         </span>

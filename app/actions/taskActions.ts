@@ -22,31 +22,54 @@ async function writeMessageLog(projectId: string, accountId: string, body: strin
   }
 }
 
-export async function executeTaskAction(taskId: string, action: string, note?: string) {
+export async function executeTaskAction(taskId: string, action: string, note?: string, projectToken?: string) {
   const task = await prisma.dependency.findUnique({
     where: { id: taskId },
-    include: { project: { select: { id: true, accountId: true, clientName: true } } }
+    include: { project: { select: { id: true, accountId: true, clientName: true, projectToken: true } } }
   });
   if (!task) throw new Error('Task not found');
 
+  if (projectToken) {
+    if (task.project.projectToken !== projectToken) {
+      throw new Error('Unauthorized: Invalid project token.');
+    }
+    if (action !== 'start' && action !== 'implement') {
+      throw new Error('Unauthorized: Action not allowed for client.');
+    }
+  } else {
+    const { getSession } = await import('../lib/session');
+    const session = await getSession();
+    if (!session || session.accountId !== task.project.accountId) {
+      throw new Error('Unauthorized: Invalid session.');
+    }
+  }
+
   const now = new Date();
   const shortId = taskId.slice(0, 5).toUpperCase();
+
+  const { notify } = await import('../lib/notify');
+  const fire = (act: 'start' | 'implement' | 'approve' | 'sendback' | 'reopen', noteText?: string) => {
+    return notify({
+      taskId, projectId: task.project.id, accountId: task.project.accountId,
+      action: act, taskTitle: task.title, note: noteText
+    });
+  };
 
   switch (action) {
     case 'start':
       if (task.status !== 'pending') throw new Error('Invalid state transition');
       await prisma.dependency.update({ where: { id: taskId }, data: { status: 'in_progress', startedAt: now } });
-      await writeMessageLog(task.project.id, task.project.accountId, `Task [${shortId}] "${task.title}" moved to In Progress.`);
+      await fire('start');
       break;
     case 'implement':
       if (task.status !== 'in_progress') throw new Error('Invalid state transition');
       await prisma.dependency.update({ where: { id: taskId }, data: { status: 'qc', qcAt: now } });
-      await writeMessageLog(task.project.id, task.project.accountId, `Task [${shortId}] "${task.title}" submitted for QC.`);
+      await fire('implement');
       break;
     case 'approve':
       if (task.status !== 'qc') throw new Error('Invalid state transition');
       await prisma.dependency.update({ where: { id: taskId }, data: { status: 'closed', closedAt: now } });
-      await writeMessageLog(task.project.id, task.project.accountId, `Task [${shortId}] "${task.title}" approved and closed.`);
+      await fire('approve');
       break;
     case 'sendback':
       if (task.status !== 'qc') throw new Error('Invalid state transition');
@@ -55,7 +78,7 @@ export async function executeTaskAction(taskId: string, action: string, note?: s
         where: { id: taskId },
         data: { status: 'in_progress', reworkCount: { increment: 1 }, sentBackNote: note, qcAt: null },
       });
-      await writeMessageLog(task.project.id, task.project.accountId, `Task [${shortId}] "${task.title}" sent back for rework. Note: ${note}`);
+      await fire('sendback', note);
       break;
     case 'reopen':
       if (task.status !== 'closed') throw new Error('Invalid state transition');
@@ -63,11 +86,11 @@ export async function executeTaskAction(taskId: string, action: string, note?: s
         where: { id: taskId },
         data: { status: 'in_progress', closedAt: null, qcAt: null, reworkCount: { increment: 1 }, sentBackNote: 'Reopened by agency' },
       });
-      await writeMessageLog(task.project.id, task.project.accountId, `Task [${shortId}] "${task.title}" was reopened.`);
+      await fire('reopen');
       break;
     case 'remove':
       await prisma.dependency.delete({ where: { id: taskId } });
-      await writeMessageLog(task.project.id, task.project.accountId, `Task [${shortId}] "${task.title}" was deleted.`);
+      // No notification for silent deletion
       break;
     default:
       throw new Error('Unknown action');
@@ -106,7 +129,14 @@ export async function createDependency(data: {
   });
 
   if (project) {
-    await writeMessageLog(data.projectId, project.accountId, `New task created: "${data.title}" (${data.priority} priority, category: ${data.category || 'General'}).`);
+    const { notify } = await import('../lib/notify');
+    await notify({
+      taskId: dep.id,
+      projectId: data.projectId,
+      accountId: project.accountId,
+      action: 'create',
+      taskTitle: data.title,
+    });
   }
 
   revalidatePath('/', 'layout');
@@ -265,17 +295,12 @@ export async function createProject(data: {
       throw new Error('Client name and project name are required.');
     }
 
-    // Ensure account exists or fallback
-    let targetAccountId = data.accountId;
-    if (targetAccountId) {
-      const acc = await prisma.account.findUnique({ where: { id: targetAccountId } });
-      if (!acc) targetAccountId = '';
+    if (!data.accountId) {
+      throw new Error('Account ID is required.');
     }
-    if (!targetAccountId) {
-      const firstAcc = await prisma.account.findFirst();
-      if (!firstAcc) throw new Error('No agency account found.');
-      targetAccountId = firstAcc.id;
-    }
+    const targetAccountId = data.accountId;
+    const acc = await prisma.account.findUnique({ where: { id: targetAccountId } });
+    if (!acc) throw new Error('Invalid account ID. Account not found.');
 
     // Validate accountManagerId against User table to prevent Foreign Key errors
     let validAmId: string | null = null;
